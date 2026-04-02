@@ -33,6 +33,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Login: strip Chrome/Edge autofill highlight when we intentionally keep fields empty. */
+input.login-field-no-autofill:-webkit-autofill,
+input.login-field-no-autofill:-webkit-autofill:hover,
+input.login-field-no-autofill:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgb(24 24 27) inset;
+  -webkit-text-fill-color: rgb(244 244 245);
+  caret-color: rgb(244 244 245);
+  transition: background-color 50000s ease-in-out 0s;
+}
+
 ::selection {
   background-color: rgba(125, 211, 252, 0.22);
   color: #fafafa;

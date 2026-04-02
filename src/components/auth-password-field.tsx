@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FocusEventHandler } from "react";
+import { useId, useState, type ChangeEventHandler, type FocusEventHandler } from "react";
 import { glassInput } from "@/lib/glass-styles";
 import { cn } from "@/lib/cn";
 
@@ -13,6 +13,10 @@ type Props = {
   autoComplete?: string;
   readOnly?: boolean;
   onFocus?: FocusEventHandler<HTMLInputElement>;
+  /** When set, the field is controlled (used on login to fight browser autofill). */
+  value?: string;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
+  inputClassName?: string;
 };
 
 export function AuthPasswordField({
@@ -24,6 +28,9 @@ export function AuthPasswordField({
   autoComplete,
   readOnly,
   onFocus,
+  value,
+  onChange,
+  inputClassName,
 }: Props) {
   const genId = useId();
   const inputId = id ?? genId;
@@ -44,7 +51,8 @@ export function AuthPasswordField({
           autoComplete={autoComplete}
           readOnly={readOnly}
           onFocus={onFocus}
-          className={cn(glassInput, "rounded-xl pr-12 text-[15px]")}
+          {...(value !== undefined ? { value, onChange } : {})}
+          className={cn(glassInput, "rounded-xl pr-12 text-[15px]", inputClassName)}
           placeholder="••••••••"
         />
         <button

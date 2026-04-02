@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loginActionState } from "@/app/actions";
 import { useActionState } from "react";
 import { AUTH_ACTION_INITIAL_STATE } from "@/lib/auth-action-state";
@@ -10,45 +10,77 @@ import { glassInput } from "@/lib/glass-styles";
 import { cn } from "@/lib/cn";
 import { AuthRoleTabs, type AuthRole } from "@/components/auth-role-tabs";
 
+/** Non-standard field names reduce password-manager auto-fill; server still reads `login_email` / `login_password`. */
 export function LoginForm() {
   const [role, setRole] = useState<AuthRole>("USER");
   const [state, formAction] = useActionState(loginActionState, AUTH_ACTION_INITIAL_STATE);
-  /** Stops browsers from pre-filling saved credentials until the user interacts with the form. */
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  /** Stops browsers from treating fields as editable until the user focuses the credential block. */
   const [fieldsUnlocked, setFieldsUnlocked] = useState(false);
+  /** Once the user touches email/password, stop clearing (avoids wiping fast typers). */
+  const skipAntiAutofillClear = useRef(false);
 
-  const unlockCredentials = () => setFieldsUnlocked(true);
+  const unlockCredentials = () => {
+    skipAntiAutofillClear.current = true;
+    setFieldsUnlocked(true);
+  };
+
+  /** Clear after paint: Chrome often applies saved credentials after hydration. */
+  useEffect(() => {
+    const clear = () => {
+      if (skipAntiAutofillClear.current) return;
+      setEmail("");
+      setPassword("");
+    };
+    clear();
+    const timers = [0, 50, 120, 350].map((ms) => setTimeout(clear, ms));
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   return (
     <form action={formAction} className="flex flex-1 flex-col gap-5" autoComplete="off">
+      {/* Honeypots: many managers fill these first; keep them off-screen and out of tab order. */}
+      <div
+        className="pointer-events-none fixed left-[-10000px] top-0 h-px w-px overflow-hidden opacity-0"
+        aria-hidden
+        tabIndex={-1}
+      >
+        <input type="text" name="fake_username" autoComplete="username" tabIndex={-1} readOnly />
+        <input type="password" name="fake_password" autoComplete="current-password" tabIndex={-1} readOnly />
+      </div>
+
       <AuthRoleTabs fieldName="loginType" value={role} onValueChange={setRole} />
 
-      <div
-        className="flex flex-col gap-5"
-        onPointerDownCapture={unlockCredentials}
-      >
+      <div className="flex flex-col gap-5" onPointerDownCapture={unlockCredentials}>
         <div>
           <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-brand-offwhite/80">
             Email address
           </label>
           <input
             id="login-email"
-            name="email"
+            name="login_email"
             type="email"
             required
             autoComplete="off"
             readOnly={!fieldsUnlocked}
             onFocus={unlockCredentials}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className={cn(glassInput, "text-[15px]")}
+            className={cn(glassInput, "login-field-no-autofill text-[15px]")}
           />
         </div>
 
         <AuthPasswordField
-          name="password"
+          name="login_password"
           label="Password"
           autoComplete="off"
           readOnly={!fieldsUnlocked}
           onFocus={unlockCredentials}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          inputClassName="login-field-no-autofill"
         />
       </div>
       {state.error ? <p className="text-sm text-rose-300/90">{state.error}</p> : null}

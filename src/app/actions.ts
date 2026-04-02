@@ -86,8 +86,9 @@ export async function signupActionState(
 }
 
 export async function loginAction(formData: FormData) {
-  const email = String(formData.get("email") ?? "").toLowerCase();
-  const password = String(formData.get("password") ?? "");
+  /** Prefer non-standard names so password managers are less likely to auto-fill this form. */
+  const email = String(formData.get("login_email") ?? formData.get("email") ?? "").toLowerCase();
+  const password = String(formData.get("login_password") ?? formData.get("password") ?? "");
   const loginType = String(formData.get("loginType") ?? "USER");
   let user;
   try {
