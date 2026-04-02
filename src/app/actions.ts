@@ -69,7 +69,7 @@ export async function signupAction(formData: FormData) {
     name: user.name,
     email: user.email,
   });
-  redirect(user.role === Role.ADMIN ? "/admin" : "/subscribe");
+  redirect(user.role === Role.ADMIN ? "/admin" : "/dashboard");
 }
 
 export async function signupActionState(
@@ -129,7 +129,8 @@ export async function loginAction(formData: FormData) {
   } catch (e) {
     rethrowUnlessDbConnection(e);
   }
-  redirect(isActive ? "/dashboard" : "/subscribe");
+  /** Always land on dashboard; limited state + subscribe CTA shown when not active. */
+  redirect("/dashboard");
 }
 
 export async function loginActionState(

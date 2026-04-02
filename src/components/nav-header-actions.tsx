@@ -63,6 +63,9 @@ export function NavHeaderActions({ user }: { user: HeaderUser | null }) {
           <Link href="/dashboard" className={navPill(onDashboardPage)}>
             Dashboard
           </Link>
+          <Link href="/subscribe" className={navPill(pathname === "/subscribe")}>
+            Subscribe
+          </Link>
         </>
       )}
       <form action={logoutAction}>

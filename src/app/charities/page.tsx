@@ -20,33 +20,45 @@ export default async function CharitiesPage({ searchParams }: { searchParams?: S
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const featuredOnly = sp.featured === "1" || sp.featured === "on" || sp.featured === "true";
 
-  const filterParts: object[] = [];
-  if (q) {
-    filterParts.push({
-      OR: [
-        { name: { contains: q, mode: "insensitive" as const } },
-        { description: { contains: q, mode: "insensitive" as const } },
-        { events: { contains: q, mode: "insensitive" as const } },
-      ],
+  let dbTotal = 0;
+  let total = 0;
+  let page = 1;
+  let tp = 1;
+  let charities: { id: string; name: string; description: string; events: string | null; featured: boolean }[] = [];
+  let dbError = false;
+
+  try {
+    const filterParts: object[] = [];
+    if (q) {
+      filterParts.push({
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { description: { contains: q, mode: "insensitive" as const } },
+          { events: { contains: q, mode: "insensitive" as const } },
+        ],
+      });
+    }
+    if (featuredOnly) filterParts.push({ featured: true as const });
+    const where = filterParts.length ? { AND: filterParts } : {};
+
+    [dbTotal, total] = await prisma.$transaction([
+      prisma.charity.count(),
+      prisma.charity.count({ where }),
+    ]);
+    tp = totalPages(total, PAGE_SIZE);
+    page = clampPage(parsePositiveInt(sp.page), tp);
+
+    charities = await prisma.charity.findMany({
+      where,
+      orderBy: [{ featured: "desc" }, { name: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: { id: true, name: true, description: true, events: true, featured: true },
     });
+  } catch (e) {
+    console.error("[charities] DB query failed:", e);
+    dbError = true;
   }
-  if (featuredOnly) filterParts.push({ featured: true as const });
-  const where = filterParts.length ? { AND: filterParts } : {};
-
-  const [dbTotal, total] = await prisma.$transaction([
-    prisma.charity.count(),
-    prisma.charity.count({ where }),
-  ]);
-  const tp = totalPages(total, PAGE_SIZE);
-  const page = clampPage(parsePositiveInt(sp.page), tp);
-
-  const charities = await prisma.charity.findMany({
-    where,
-    orderBy: [{ featured: "desc" }, { name: "asc" }],
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-    select: { id: true, name: true, description: true, events: true, featured: true },
-  });
 
   return (
     <main className="relative mx-auto w-full max-w-7xl flex-1 px-5 py-10 md:px-8">
@@ -62,7 +74,9 @@ export default async function CharitiesPage({ searchParams }: { searchParams?: S
           you join.
         </p>
 
-        {dbTotal === 0 ? (
+        {dbError ? (
+          <p className="mt-8 text-sm text-brand-offwhite/50">Unable to load charities right now. Please try again later.</p>
+        ) : dbTotal === 0 ? (
           <p className="mt-8 text-sm text-brand-offwhite/50">Charity listings will appear here once published.</p>
         ) : (
           <CharitiesDirectory

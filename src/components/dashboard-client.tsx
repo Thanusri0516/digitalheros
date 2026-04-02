@@ -101,11 +101,11 @@ const DashboardLowerSections = dynamic(
 );
 
 
+/** Single-scroll anchors: draws + win analysis stay under #winnings in lower sections. */
 const USER_FEATURE_LINKS = [
-  { href: "#overview", label: "Charity" },
+  { href: "#overview", label: "Overview" },
   { href: "#scores", label: "Scores" },
-  { href: "#draws", label: "Draws" },
-  { href: "#wins", label: "Winnings" },
+  { href: "#winnings", label: "Winnings" },
   { href: "#profile", label: "Profile" },
 ];
 
