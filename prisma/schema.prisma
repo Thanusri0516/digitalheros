@@ -10,8 +10,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // Single URL keeps deploy/CI working when only DATABASE_URL is set (e.g. Vercel).
+  // For Supabase: use the pooler URL here for the app; run `prisma migrate` locally with
+  // DATABASE_URL temporarily set to the direct (5432) URI if migrations fail via the pooler.
+  url = env("DATABASE_URL")
 }
 
 enum Role {

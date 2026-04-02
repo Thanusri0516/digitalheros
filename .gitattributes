@@ -1,0 +1,3 @@
+# Store text files as LF in the repo so Windows/macOS/Linux stay consistent.
+# Stops "LF will be replaced by CRLF" noise from core.autocrlf on Windows.
+* text=auto eol=lf
