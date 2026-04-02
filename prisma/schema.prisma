@@ -1,0 +1,185 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELED
+  LAPSED
+}
+
+enum DrawStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  passwordHash       String
+  name               String
+  role               Role                @default(USER)
+  charityPercent     Int                 @default(10)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  scores             Score[]
+  subscriptions      Subscription[]
+  winnerClaims       WinnerClaim[]
+  paymentAllocations PaymentAllocation[]
+  selectedCharityId  String?
+  selectedCharity    Charity?            @relation(fields: [selectedCharityId], references: [id])
+}
+
+model Charity {
+  id               String  @id @default(cuid())
+  name             String
+  description      String
+  imageUrl         String?
+  events           String?
+  featured         Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  users            User[]
+  charityDonations CharityDonation[]
+}
+
+model Subscription {
+  id                 String              @id @default(cuid())
+  userId             String
+  plan               SubscriptionPlan
+  status             SubscriptionStatus  @default(ACTIVE)
+  amountCents        Int
+  startDate          DateTime            @default(now())
+  renewalDate        DateTime
+  canceledAt         DateTime?
+  paymentProvider    String              @default("stripe")
+  paymentRef         String?
+  stripeSessionId    String?
+  stripeSubId        String?
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentAllocations PaymentAllocation[]
+}
+
+/// One Stripe payment (checkout or invoice): how it splits into prize / charity / platform (INR paise).
+model PaymentAllocation {
+  id                 String                  @id @default(cuid())
+  userId             String
+  subscriptionId     String?
+  stripePaymentRef   String                  @unique
+  totalCents         Int
+  prizePoolCents     Int
+  charityCents       Int
+  platformCents      Int
+  plan               SubscriptionPlan
+  paidAt             DateTime                @default(now())
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  prizeContributions PrizePoolContribution[]
+}
+
+/// Prize slice attributed to a calendar month (yearly plans spread across 12 months).
+model PrizePoolContribution {
+  id                    String            @id @default(cuid())
+  paymentAllocationId   String
+  amountCents           Int
+  poolMonth             Int
+  poolYear              Int
+  paymentAllocation     PaymentAllocation @relation(fields: [paymentAllocationId], references: [id], onDelete: Cascade)
+
+  @@index([poolMonth, poolYear])
+}
+
+model Score {
+  id        String   @id @default(cuid())
+  userId    String
+  value     Int
+  playedAt  DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Draw {
+  id             String     @id @default(cuid())
+  month          Int
+  year           Int
+  winningNumbers String
+  logicMode      String
+  status         DrawStatus @default(DRAFT)
+  createdAt      DateTime   @default(now())
+  publishedAt    DateTime?
+  winners        WinnerClaim[]
+
+  @@unique([month, year])
+}
+
+model WinnerClaim {
+  id                 String             @id @default(cuid())
+  userId             String
+  drawId             String
+  matchCount         Int
+  amountCents        Int
+  proofUrl           String?
+  verificationStatus VerificationStatus @default(PENDING)
+  payoutStatus       PayoutStatus       @default(PENDING)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draw               Draw               @relation(fields: [drawId], references: [id], onDelete: Cascade)
+}
+
+model PrizePoolLedger {
+  id                 String   @id @default(cuid())
+  month              Int
+  year               Int
+  activeSubscribers  Int
+  totalPoolCents     Int
+  fiveMatchPoolCents Int
+  fourMatchPoolCents Int
+  threeMatchPoolCents Int
+  rolloverCents      Int      @default(0)
+  createdAt          DateTime @default(now())
+}
+
+model CharityDonation {
+  id                 String   @id @default(cuid())
+  userId             String
+  charityId          String
+  amountCents        Int
+  createdAt          DateTime @default(now())
+  contributionType String   @default("subscription")
+  /** Idempotent Stripe Checkout session id for one-time donations */
+  stripePaymentRef   String?  @unique
+  charity            Charity  @relation(fields: [charityId], references: [id], onDelete: Cascade)
+}
