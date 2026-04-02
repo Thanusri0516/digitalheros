@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type FocusEventHandler } from "react";
 import { glassInput } from "@/lib/glass-styles";
 import { cn } from "@/lib/cn";
 
@@ -11,6 +11,8 @@ type Props = {
   required?: boolean;
   minLength?: number;
   autoComplete?: string;
+  readOnly?: boolean;
+  onFocus?: FocusEventHandler<HTMLInputElement>;
 };
 
 export function AuthPasswordField({
@@ -20,6 +22,8 @@ export function AuthPasswordField({
   required = true,
   minLength = 6,
   autoComplete,
+  readOnly,
+  onFocus,
 }: Props) {
   const genId = useId();
   const inputId = id ?? genId;
@@ -38,6 +42,8 @@ export function AuthPasswordField({
           required={required}
           minLength={minLength}
           autoComplete={autoComplete}
+          readOnly={readOnly}
+          onFocus={onFocus}
           className={cn(glassInput, "rounded-xl pr-12 text-[15px]")}
           placeholder="••••••••"
         />

@@ -13,27 +13,44 @@ import { AuthRoleTabs, type AuthRole } from "@/components/auth-role-tabs";
 export function LoginForm() {
   const [role, setRole] = useState<AuthRole>("USER");
   const [state, formAction] = useActionState(loginActionState, AUTH_ACTION_INITIAL_STATE);
+  /** Stops browsers from pre-filling saved credentials until the user interacts with the form. */
+  const [fieldsUnlocked, setFieldsUnlocked] = useState(false);
+
+  const unlockCredentials = () => setFieldsUnlocked(true);
 
   return (
-    <form action={formAction} className="flex flex-1 flex-col gap-5">
+    <form action={formAction} className="flex flex-1 flex-col gap-5" autoComplete="off">
       <AuthRoleTabs fieldName="loginType" value={role} onValueChange={setRole} />
 
-      <div>
-        <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-brand-offwhite/80">
-          Email address
-        </label>
-        <input
-          id="login-email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          placeholder="you@example.com"
-          className={cn(glassInput, "text-[15px]")}
+      <div
+        className="flex flex-col gap-5"
+        onPointerDownCapture={unlockCredentials}
+      >
+        <div>
+          <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-brand-offwhite/80">
+            Email address
+          </label>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            required
+            autoComplete="off"
+            readOnly={!fieldsUnlocked}
+            onFocus={unlockCredentials}
+            placeholder="you@example.com"
+            className={cn(glassInput, "text-[15px]")}
+          />
+        </div>
+
+        <AuthPasswordField
+          name="password"
+          label="Password"
+          autoComplete="off"
+          readOnly={!fieldsUnlocked}
+          onFocus={unlockCredentials}
         />
       </div>
-
-      <AuthPasswordField name="password" label="Password" autoComplete="current-password" />
       {state.error ? <p className="text-sm text-rose-300/90">{state.error}</p> : null}
 
       <FormPendingButton
