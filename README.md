@@ -72,6 +72,7 @@ Open `.env` and fill in the values:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
 | `RESEND_API_KEY` | *(optional)* Resend API key for transactional emails |
 | `EMAIL_FROM` | *(optional)* Sender address for emails |
+| `ADMIN_SIGNUP_KEY` | *(optional)* Shared secret required to create an **admin** account via `/signup`; leave empty to disable admin signup |
 
 > **⚠️ Important:** If your database password contains special characters (`@`, `:`, `/`, etc.), you must percent-encode them in the connection URL. See `.env.example` for examples.
 
@@ -92,6 +93,33 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+---
+
+## 🔐 Admin access
+
+| Item | Details |
+|---|---|
+| **Admin URL** | `/admin` — after login, admins are sent here automatically (member routes like `/dashboard` redirect admins to `/admin`). |
+| **Login** | Go to `/login`, choose the **Admin** tab, and sign in with an account that has role `ADMIN`. |
+| **Seed admin (local dev)** | After `npm run db:seed`, a default admin exists if the email was not already used: **Email:** `admin@digitalheroes.local` · **Password:** `Admin@123` · **Name:** Platform Admin. |
+
+**Creating additional admins:** Set `ADMIN_SIGNUP_KEY` in `.env`, open `/signup`, select **Admin**, and enter the same key in the admin-key field. Without a key, admin signup is disabled.
+
+**Admin panel sections** (single page with jump navigation; some URLs redirect to the matching anchor):
+
+| Section | Purpose |
+|---|---|
+| **Reports** | Draw / financial reporting |
+| **Charity payouts** | Charity payout tracking |
+| **Users** | Subscribers, subscriptions, plan overrides |
+| **Charities** | Directory, featured, metadata |
+| **Draws** | Create and publish monthly draws |
+| **Verification** | Winner claims, proof review, payouts |
+
+**Shortcuts:** `/admin/users`, `/admin/charities`, `/admin/draws`, `/admin/winners`, and `/admin/reports` redirect to the corresponding section on `/admin`.
+
+> **Production:** Change the seeded admin password (or remove the seed user and create admins via `ADMIN_SIGNUP_KEY`). Never rely on default credentials in production.
 
 ---
 
