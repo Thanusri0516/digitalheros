@@ -65,7 +65,8 @@ Open `.env` and fill in the values:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | Postgres connection string (Supabase pooler on 6543 is fine). If `prisma migrate` fails, run it with `DATABASE_URL` set to the direct 5432 URI temporarily. |
+| `DATABASE_URL` | Supabase **transaction pooler** (port 6543) — runtime / app connections |
+| `DIRECT_URL` | Supabase **direct** Postgres (port 5432) — required so `prisma migrate deploy` works (Vercel build + local migrations). Copy from Supabase → Database → Connection string → URI. |
 | `JWT_SECRET` | A strong random secret for signing auth tokens |
 | `NEXT_PUBLIC_APP_URL` | Your app URL, e.g. `http://localhost:3000` |
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...`) |
