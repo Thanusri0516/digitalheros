@@ -65,8 +65,7 @@ Open `.env` and fill in the values:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | Supabase **transaction pooler** (port 6543) — runtime / app connections |
-| `DIRECT_URL` | Supabase **direct** Postgres (port 5432) — required so `prisma migrate deploy` works (Vercel build + local migrations). Copy from Supabase → Database → Connection string → URI. |
+| `DATABASE_URL` | Postgres URL (Supabase **pooler** on 6543 works for Vercel and the app). |
 | `JWT_SECRET` | A strong random secret for signing auth tokens |
 | `NEXT_PUBLIC_APP_URL` | Your app URL, e.g. `http://localhost:3000` |
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...`) |
@@ -172,7 +171,8 @@ digitalheros/
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
-| **Migrate** | `npm run db:migrate` | Run Prisma migrations |
+| **Migrate (dev)** | `npm run db:migrate` | Create/apply migrations in development |
+| **Migrate (prod)** | `npm run db:migrate:deploy` | Apply pending migrations to production DB (run locally or in CI when you ship schema changes — not part of Vercel build) |
 | **Seed** | `npm run db:seed` | Seed database with sample data |
 
 ---
@@ -218,8 +218,8 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 
 1. Push the repo to GitHub.
 2. Import the project in [Vercel](https://vercel.com/).
-3. Add all environment variables from `.env` to the Vercel project settings.
-4. Vercel auto-detects Next.js — no additional config needed.
+3. Add environment variables (at minimum `DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, Stripe keys as needed). You do **not** need `DIRECT_URL`.
+4. **Database migrations** are not run during the Vercel build. After pulling new migrations, run `npm run db:migrate:deploy` against production (from your machine with `DATABASE_URL` pointing at prod, or in CI). If Supabase’s pooler rejects migrate, use the **direct** (5432) connection string for that command only.
 5. Set up your Stripe webhook to point to your production URL.
 
 ### Other Platforms

@@ -10,10 +10,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Supabase: `url` = transaction pooler (app/runtime). `directUrl` = direct Postgres (migrations).
-  // Without directUrl, `prisma migrate deploy` often fails on the pooler (PgBouncer).
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // Only DATABASE_URL is required (Vercel). Apply migrations with `npm run db:migrate:deploy` when needed
+  // (from your machine or CI). If migrate fails on the Supabase pooler, use the direct 5432 URL for that command only.
+  url = env("DATABASE_URL")
 }
 
 enum Role {
