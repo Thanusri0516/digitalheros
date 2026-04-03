@@ -25,6 +25,8 @@ import { AUTH_ACTION_INITIAL_STATE } from "@/lib/auth-action-state";
 import type { AuthActionState } from "@/lib/auth-action-state";
 import { PROFILE_ACTION_INITIAL_STATE } from "@/lib/profile-action-state";
 import type { ProfileActionState } from "@/lib/profile-action-state";
+import { SCORE_ACTION_INITIAL_STATE } from "@/lib/score-action-state";
+import type { ScoreActionState } from "@/lib/score-action-state";
 
 function isNextRedirectError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -234,21 +236,29 @@ export async function updateScoreAction(formData: FormData) {
   const scoreId = String(formData.get("scoreId") ?? "");
   const value = parseStablefordScoreFromForm(formData);
   const playedAt = parseRequiredPlayedAt(formData);
-  const existing = await prisma.score.findFirst({ where: { id: scoreId, userId: user.id } });
-  if (!existing) throw new Error("Score not found");
-  await prisma.score.update({
-    where: { id: scoreId },
-    data: { value, playedAt },
-  });
+  try {
+    const existing = await prisma.score.findFirst({ where: { id: scoreId, userId: user.id } });
+    if (!existing) throw new Error("Score not found");
+    await prisma.score.update({
+      where: { id: scoreId },
+      data: { value, playedAt },
+    });
+  } catch (e) {
+    rethrowUnlessDbConnection(e);
+  }
   revalidatePath("/dashboard");
 }
 
 export async function deleteScoreAction(formData: FormData) {
   const user = await requireSubscriptionOrRedirect();
   const scoreId = String(formData.get("scoreId") ?? "");
-  const existing = await prisma.score.findFirst({ where: { id: scoreId, userId: user.id } });
-  if (!existing) throw new Error("Score not found");
-  await prisma.score.delete({ where: { id: scoreId } });
+  try {
+    const existing = await prisma.score.findFirst({ where: { id: scoreId, userId: user.id } });
+    if (!existing) throw new Error("Score not found");
+    await prisma.score.delete({ where: { id: scoreId } });
+  } catch (e) {
+    rethrowUnlessDbConnection(e);
+  }
   revalidatePath("/dashboard");
 }
 
@@ -256,18 +266,52 @@ export async function addScoreAction(formData: FormData) {
   const user = await requireSubscriptionOrRedirect();
   const value = parseStablefordScoreFromForm(formData);
   const playedAt = parseRequiredPlayedAt(formData);
-  await prisma.$transaction(async (tx) => {
-    await tx.score.create({ data: { userId: user.id, value, playedAt } });
-    const scores = await tx.score.findMany({
-      where: { userId: user.id },
-      orderBy: [{ playedAt: "desc" }, { createdAt: "desc" }],
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.score.create({ data: { userId: user.id, value, playedAt } });
+      const scores = await tx.score.findMany({
+        where: { userId: user.id },
+        orderBy: [{ playedAt: "desc" }, { createdAt: "desc" }],
+      });
+      if (scores.length > 5) {
+        const overflow = scores.slice(5);
+        await tx.score.deleteMany({ where: { id: { in: overflow.map((s) => s.id) } } });
+      }
     });
-    if (scores.length > 5) {
-      const overflow = scores.slice(5);
-      await tx.score.deleteMany({ where: { id: { in: overflow.map((s) => s.id) } } });
-    }
-  });
+  } catch (e) {
+    rethrowUnlessDbConnection(e);
+  }
   revalidatePath("/dashboard");
+}
+
+export async function addScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
+  try {
+    await addScoreAction(formData);
+    return SCORE_ACTION_INITIAL_STATE;
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+}
+
+export async function updateScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
+  try {
+    await updateScoreAction(formData);
+    return SCORE_ACTION_INITIAL_STATE;
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+}
+
+export async function deleteScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
+  try {
+    await deleteScoreAction(formData);
+    return SCORE_ACTION_INITIAL_STATE;
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
 }
 
 export async function updateCharitySelectionAction(formData: FormData) {

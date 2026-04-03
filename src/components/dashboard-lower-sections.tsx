@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
-  addScoreAction,
-  deleteScoreAction,
+  addScoreActionState,
+  deleteScoreActionState,
   submitWinnerProofAction,
   updateProfileActionState,
-  updateScoreAction,
+  updateScoreActionState,
 } from "@/app/actions";
 import { DashboardPaginationControls } from "@/components/dashboard-pagination-controls";
 import { cn } from "@/lib/cn";
 import { bentoCard, bentoCardTitle, bentoInset, glassInput, interactiveLiftSubtle } from "@/lib/glass-styles";
 import { PROFILE_ACTION_INITIAL_STATE } from "@/lib/profile-action-state";
+import { SCORE_ACTION_INITIAL_STATE } from "@/lib/score-action-state";
 
 type ScoreRow = { id: string; playedAt: string; value: number };
 type ClaimRow = {
@@ -62,8 +63,59 @@ function subscribeCtaClassName() {
   );
 }
 
+function ScoreRowEditor({ s }: { s: ScoreRow }) {
+  const [updateState, updateFormAction] = useActionState(updateScoreActionState, SCORE_ACTION_INITIAL_STATE);
+  const [deleteState, deleteFormAction] = useActionState(deleteScoreActionState, SCORE_ACTION_INITIAL_STATE);
+  const rowError = updateState.error || deleteState.error;
+
+  return (
+    <li className={cn(bentoInset, "p-5")}>
+      {rowError ? <p className="mb-3 text-sm text-rose-300/90">{rowError}</p> : null}
+      <form action={updateFormAction} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <input type="hidden" name="scoreId" value={s.id} />
+        <div>
+          <label className="mb-2 block text-xs text-brand-offwhite/45">Stableford (1–45)</label>
+          <input
+            name="score"
+            type="number"
+            min={1}
+            max={45}
+            step={1}
+            inputMode="numeric"
+            required
+            defaultValue={s.value}
+            className={glassInput}
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-xs text-brand-offwhite/45">Played on</label>
+          <input name="playedAt" type="date" required defaultValue={s.playedAt.slice(0, 10)} className={glassInput} />
+        </div>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <button
+            type="submit"
+            className={cn(
+              "rounded-lg border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08]",
+              interactiveLiftSubtle,
+            )}
+          >
+            Save
+          </button>
+        </div>
+      </form>
+      <form action={deleteFormAction} className="mt-3 flex justify-end">
+        <input type="hidden" name="scoreId" value={s.id} />
+        <button type="submit" className="text-xs font-medium text-rose-300/85 underline-offset-4 hover:text-rose-200 hover:underline">
+          Remove score
+        </button>
+      </form>
+    </li>
+  );
+}
+
 export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
   const [profileState, profileFormAction] = useActionState(updateProfileActionState, PROFILE_ACTION_INITIAL_STATE);
+  const [addScoreState, addScoreFormAction] = useActionState(addScoreActionState, SCORE_ACTION_INITIAL_STATE);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -96,7 +148,8 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
               removes the oldest by date. Shown newest first.
             </p>
             <p className="mt-2 text-xs text-brand-offwhite/45">Rounds recorded: {props.scores.length} / 5</p>
-            <form action={addScoreAction} className="mt-6 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            {addScoreState.error ? <p className="mt-3 text-sm text-rose-300/90">{addScoreState.error}</p> : null}
+            <form action={addScoreFormAction} className="mt-6 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div>
                 <label className="mb-2 block text-xs text-brand-offwhite/45">Stableford (1–45)</label>
                 <input name="score" type="number" min={1} max={45} step={1} inputMode="numeric" required className={glassInput} />
@@ -117,46 +170,7 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
             </form>
             <ul className="mt-8 space-y-4 border-t border-white/[0.08] pt-6 text-sm text-brand-offwhite/75">
               {props.scores.map((s) => (
-                <li key={s.id} className={cn(bentoInset, "p-5")}>
-                  <form action={updateScoreAction} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                    <input type="hidden" name="scoreId" value={s.id} />
-                    <div>
-                      <label className="mb-2 block text-xs text-brand-offwhite/45">Stableford (1–45)</label>
-                      <input
-                        name="score"
-                        type="number"
-                        min={1}
-                        max={45}
-                        step={1}
-                        inputMode="numeric"
-                        required
-                        defaultValue={s.value}
-                        className={glassInput}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-xs text-brand-offwhite/45">Played on</label>
-                      <input name="playedAt" type="date" required defaultValue={s.playedAt.slice(0, 10)} className={glassInput} />
-                    </div>
-                    <div className="flex flex-wrap gap-2 sm:justify-end">
-                      <button
-                        type="submit"
-                        className={cn(
-                          "rounded-lg border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08]",
-                          interactiveLiftSubtle,
-                        )}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </form>
-                  <form action={deleteScoreAction} className="mt-3 flex justify-end">
-                    <input type="hidden" name="scoreId" value={s.id} />
-                    <button type="submit" className="text-xs font-medium text-rose-300/85 underline-offset-4 hover:text-rose-200 hover:underline">
-                      Remove score
-                    </button>
-                  </form>
-                </li>
+                <ScoreRowEditor key={s.id} s={s} />
               ))}
             </ul>
           </section>
