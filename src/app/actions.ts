@@ -25,7 +25,7 @@ import { AUTH_ACTION_INITIAL_STATE } from "@/lib/auth-action-state";
 import type { AuthActionState } from "@/lib/auth-action-state";
 import { PROFILE_ACTION_INITIAL_STATE } from "@/lib/profile-action-state";
 import type { ProfileActionState } from "@/lib/profile-action-state";
-import { SCORE_ACTION_INITIAL_STATE } from "@/lib/score-action-state";
+import { scoreActionSuccessState } from "@/lib/score-action-state";
 import type { ScoreActionState } from "@/lib/score-action-state";
 
 function isNextRedirectError(error: unknown): boolean {
@@ -287,7 +287,7 @@ export async function addScoreAction(formData: FormData) {
 export async function addScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
   try {
     await addScoreAction(formData);
-    return SCORE_ACTION_INITIAL_STATE;
+    return scoreActionSuccessState();
   } catch (error) {
     if (isNextRedirectError(error)) throw error;
     return { error: errorMessage(error) };
@@ -297,7 +297,7 @@ export async function addScoreActionState(_prev: ScoreActionState, formData: For
 export async function updateScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
   try {
     await updateScoreAction(formData);
-    return SCORE_ACTION_INITIAL_STATE;
+    return scoreActionSuccessState();
   } catch (error) {
     if (isNextRedirectError(error)) throw error;
     return { error: errorMessage(error) };
@@ -307,7 +307,7 @@ export async function updateScoreActionState(_prev: ScoreActionState, formData: 
 export async function deleteScoreActionState(_prev: ScoreActionState, formData: FormData): Promise<ScoreActionState> {
   try {
     await deleteScoreAction(formData);
-    return SCORE_ACTION_INITIAL_STATE;
+    return scoreActionSuccessState();
   } catch (error) {
     if (isNextRedirectError(error)) throw error;
     return { error: errorMessage(error) };

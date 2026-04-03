@@ -1,5 +1,6 @@
 import { DrawStatus, PayoutStatus, SubscriptionPlan, SubscriptionStatus, VerificationStatus } from "@/generated/prisma/client";
 import type { Subscription } from "@/generated/prisma/client";
+import { DASHBOARD_CHARITY_LIST_LIMIT } from "@/lib/dashboard-constants";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-table";
 import { PAGE_SIZE, clampPage, totalPages } from "@/lib/pagination";
@@ -24,9 +25,10 @@ export async function loadDashboardPageData(userId: string, pages?: DashboardPag
 
   return prisma.$transaction(
     async (tx) => {
-      let sub: Subscription | null = await tx.subscription.findFirst({
+      let sub: Pick<Subscription, "id" | "status" | "renewalDate" | "startDate"> | null = await tx.subscription.findFirst({
         where: { userId },
         orderBy: { startDate: "desc" },
+        select: { id: true, status: true, renewalDate: true, startDate: true },
       });
 
       if (sub?.status === SubscriptionStatus.ACTIVE && sub.renewalDate < now) {
@@ -49,13 +51,15 @@ export async function loadDashboardPageData(userId: string, pages?: DashboardPag
       });
 
       const charities = await tx.charity.findMany({
-        orderBy: { createdAt: "asc" },
+        orderBy: { name: "asc" },
         select: { id: true, name: true },
-        take: 500,
+        take: DASHBOARD_CHARITY_LIST_LIMIT,
       });
 
-      const publishedDrawCount = await tx.draw.count({ where: { status: DrawStatus.PUBLISHED } });
-      const claimCount = await tx.winnerClaim.count({ where: { userId } });
+      const [publishedDrawCount, claimCount] = await Promise.all([
+        tx.draw.count({ where: { status: DrawStatus.PUBLISHED } }),
+        tx.winnerClaim.count({ where: { userId } }),
+      ]);
       const drawTotalPages = totalPages(publishedDrawCount, ps);
       const claimTotalPages = totalPages(claimCount, ps);
       const drawPage = clampPage(rawDraw, drawTotalPages);

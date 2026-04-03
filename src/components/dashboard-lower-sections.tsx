@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { memo, useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 import {
   addScoreActionState,
   deleteScoreActionState,
@@ -63,10 +65,40 @@ function subscribeCtaClassName() {
   );
 }
 
-function ScoreRowEditor({ s }: { s: ScoreRow }) {
+function useRefreshWhenScoreUpdated(updatedAt: number | undefined) {
+  const router = useRouter();
+  const last = useRef(0);
+  useEffect(() => {
+    if (updatedAt != null && updatedAt > last.current) {
+      last.current = updatedAt;
+      router.refresh();
+    }
+  }, [updatedAt, router]);
+}
+
+function ScoreFormSubmitButton({
+  children,
+  pendingLabel,
+  className,
+}: {
+  children: ReactNode;
+  pendingLabel: string;
+  className?: string;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className={className}>
+      {pending ? pendingLabel : children}
+    </button>
+  );
+}
+
+const ScoreRowEditor = memo(function ScoreRowEditor({ s }: { s: ScoreRow }) {
   const [updateState, updateFormAction] = useActionState(updateScoreActionState, SCORE_ACTION_INITIAL_STATE);
   const [deleteState, deleteFormAction] = useActionState(deleteScoreActionState, SCORE_ACTION_INITIAL_STATE);
   const rowError = updateState.error || deleteState.error;
+  const refreshTick = Math.max(updateState.updatedAt ?? 0, deleteState.updatedAt ?? 0);
+  useRefreshWhenScoreUpdated(refreshTick > 0 ? refreshTick : undefined);
 
   return (
     <li className={cn(bentoInset, "p-5")}>
@@ -92,38 +124,108 @@ function ScoreRowEditor({ s }: { s: ScoreRow }) {
           <input name="playedAt" type="date" required defaultValue={s.playedAt.slice(0, 10)} className={glassInput} />
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          <button
-            type="submit"
+          <ScoreFormSubmitButton
+            pendingLabel="Saving…"
             className={cn(
-              "rounded-lg border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08]",
+              "rounded-lg border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08] disabled:opacity-50",
               interactiveLiftSubtle,
             )}
           >
             Save
-          </button>
+          </ScoreFormSubmitButton>
         </div>
       </form>
       <form action={deleteFormAction} className="mt-3 flex justify-end">
         <input type="hidden" name="scoreId" value={s.id} />
-        <button type="submit" className="text-xs font-medium text-rose-300/85 underline-offset-4 hover:text-rose-200 hover:underline">
+        <ScoreFormSubmitButton
+          pendingLabel="Removing…"
+          className="text-xs font-medium text-rose-300/85 underline-offset-4 hover:text-rose-200 hover:underline disabled:opacity-50"
+        >
           Remove score
-        </button>
+        </ScoreFormSubmitButton>
       </form>
     </li>
   );
-}
+});
 
-export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
+const DrawResultRow = memo(function DrawResultRow({
+  month,
+  year,
+  publishedAt,
+  winningNumbers,
+  yourMatchCount,
+}: {
+  month: number;
+  year: number;
+  publishedAt: string | null;
+  winningNumbers: number[];
+  yourMatchCount: number;
+}) {
+  return (
+    <li className={cn(bentoInset, "p-5 text-sm text-brand-offwhite/90")}>
+      <p className="font-medium text-brand-offwhite">
+        {month}/{year}
+        {publishedAt ? (
+          <span className="ml-2 font-normal text-brand-offwhite/45">
+            · Published {new Date(publishedAt).toLocaleDateString()}
+          </span>
+        ) : null}
+      </p>
+      <p className="mt-3 text-lg font-semibold tabular-nums tracking-wide text-sky-200/95">{winningNumbers.join(" · ")}</p>
+      <p className="mt-2 text-brand-offwhite/55">Your match (last 5 scores): {yourMatchCount}/5</p>
+    </li>
+  );
+});
+
+const ClaimCard = memo(function ClaimCard({
+  claim,
+  subscriptionActive,
+}: {
+  claim: ClaimRow;
+  subscriptionActive: boolean;
+}) {
+  return (
+    <div className={cn(bentoInset, "p-5 text-sm text-brand-offwhite/90")}>
+      <p>
+        Draw {claim.draw.month}/{claim.draw.year} · Match {claim.matchCount} · INR {(claim.amountCents / 100).toFixed(0)}
+      </p>
+      <p className="mt-1 text-brand-offwhite/55">
+        Verification: {claim.verificationStatus} · Payout: {claim.payoutStatus}
+      </p>
+      {subscriptionActive ? (
+        <form action={submitWinnerProofAction} className="mt-4 flex flex-wrap gap-2">
+          <input type="hidden" name="claimId" value={claim.id} />
+          <input name="proofUrl" placeholder="Proof URL" className={cn(glassInput, "min-w-0 flex-1 py-2.5")} />
+          <button
+            type="submit"
+            className={cn(
+              "rounded-lg border border-white/[0.12] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 backdrop-blur-sm hover:bg-white/[0.09]",
+              interactiveLiftSubtle,
+            )}
+          >
+            Submit
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+});
+
+export const DashboardLowerSections = memo(function DashboardLowerSections(props: DashboardLowerSectionsProps) {
   const [profileState, profileFormAction] = useActionState(updateProfileActionState, PROFILE_ACTION_INITIAL_STATE);
   const [addScoreState, addScoreFormAction] = useActionState(addScoreActionState, SCORE_ACTION_INITIAL_STATE);
+  useRefreshWhenScoreUpdated(addScoreState.updatedAt);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const pageTokens = {
-    dp: props.pagination.draws.page,
-    cp: props.pagination.claims.page,
-    pap: props.pagination.payments.page,
-  };
+  const pageTokens = useMemo(
+    () => ({
+      dp: props.pagination.draws.page,
+      cp: props.pagination.claims.page,
+      pap: props.pagination.payments.page,
+    }),
+    [props.pagination.draws.page, props.pagination.claims.page, props.pagination.payments.page],
+  );
 
   return (
     <>
@@ -158,15 +260,15 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
                 <label className="mb-2 block text-xs text-brand-offwhite/45">Played on</label>
                 <input name="playedAt" type="date" required className={glassInput} />
               </div>
-              <button
-                type="submit"
+              <ScoreFormSubmitButton
+                pendingLabel="Adding…"
                 className={cn(
-                  "rounded-lg border border-white/[0.12] bg-white/[0.06] px-6 py-3.5 text-sm font-medium text-zinc-100 transition-colors hover:border-white/[0.18] hover:bg-white/[0.1] sm:mb-0",
+                  "rounded-lg border border-white/[0.12] bg-white/[0.06] px-6 py-3.5 text-sm font-medium text-zinc-100 transition-colors hover:border-white/[0.18] hover:bg-white/[0.1] sm:mb-0 disabled:opacity-50",
                   interactiveLiftSubtle,
                 )}
               >
                 Add score
-              </button>
+              </ScoreFormSubmitButton>
             </form>
             <ul className="mt-8 space-y-4 border-t border-white/[0.08] pt-6 text-sm text-brand-offwhite/75">
               {props.scores.map((s) => (
@@ -184,16 +286,14 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
             <p className="mt-2 text-sm text-brand-offwhite/50">Winning numbers for each month.</p>
             <ul className="mt-6 space-y-4">
               {props.publishedDraws.map((d) => (
-                <li key={`${d.year}-${d.month}`} className={cn(bentoInset, "p-5 text-sm text-brand-offwhite/90")}>
-                  <p className="font-medium text-brand-offwhite">
-                    {d.month}/{d.year}
-                    {d.publishedAt ? (
-                      <span className="ml-2 font-normal text-brand-offwhite/45">· Published {new Date(d.publishedAt).toLocaleDateString()}</span>
-                    ) : null}
-                  </p>
-                  <p className="mt-3 text-lg font-semibold tabular-nums tracking-wide text-sky-200/95">{d.winningNumbers.join(" · ")}</p>
-                  <p className="mt-2 text-brand-offwhite/55">Your match (last 5 scores): {d.yourMatchCount}/5</p>
-                </li>
+                <DrawResultRow
+                  key={`${d.year}-${d.month}`}
+                  month={d.month}
+                  year={d.year}
+                  publishedAt={d.publishedAt}
+                  winningNumbers={d.winningNumbers}
+                  yourMatchCount={d.yourMatchCount}
+                />
               ))}
             </ul>
             {!props.publishedDraws.length ? (
@@ -223,29 +323,7 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
             <h2 className={bentoCardTitle}>Your prize claims</h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {props.claims.map((claim) => (
-                <div key={claim.id} className={cn(bentoInset, "p-5 text-sm text-brand-offwhite/90")}>
-                  <p>
-                    Draw {claim.draw.month}/{claim.draw.year} · Match {claim.matchCount} · INR {(claim.amountCents / 100).toFixed(0)}
-                  </p>
-                  <p className="mt-1 text-brand-offwhite/55">
-                    Verification: {claim.verificationStatus} · Payout: {claim.payoutStatus}
-                  </p>
-                  {props.subscriptionActive ? (
-                    <form action={submitWinnerProofAction} className="mt-4 flex flex-wrap gap-2">
-                      <input type="hidden" name="claimId" value={claim.id} />
-                      <input name="proofUrl" placeholder="Proof URL" className={cn(glassInput, "min-w-0 flex-1 py-2.5")} />
-                      <button
-                        type="submit"
-                        className={cn(
-                          "rounded-lg border border-white/[0.12] bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 backdrop-blur-sm hover:bg-white/[0.09]",
-                          interactiveLiftSubtle,
-                        )}
-                      >
-                        Submit
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
+                <ClaimCard key={claim.id} claim={claim} subscriptionActive={props.subscriptionActive} />
               ))}
             </div>
             <DashboardPaginationControls
@@ -338,4 +416,4 @@ export function DashboardLowerSections(props: DashboardLowerSectionsProps) {
       </section>
     </>
   );
-}
+});

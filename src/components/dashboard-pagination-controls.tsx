@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { memo } from "react";
 import { cn } from "@/lib/cn";
 
 type Which = "dp" | "cp" | "pap";
@@ -23,7 +24,14 @@ function href(extra: Record<string, string>, tokens: Props["tokens"], which: Whi
   return `/dashboard?${q.toString()}`;
 }
 
-export function DashboardPaginationControls({ which, page, totalPages: tp, tokens, extra, className }: Props) {
+export const DashboardPaginationControls = memo(function DashboardPaginationControls({
+  which,
+  page,
+  totalPages: tp,
+  tokens,
+  extra,
+  className,
+}: Props) {
   if (tp <= 1) return null;
 
   const prev = Math.max(1, page - 1);
@@ -65,4 +73,4 @@ export function DashboardPaginationControls({ which, page, totalPages: tp, token
       </div>
     </nav>
   );
-}
+});

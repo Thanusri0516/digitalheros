@@ -7,6 +7,8 @@ import { parsePositiveInt } from "@/lib/pagination";
 import { syncSubscriptionFromCheckoutSessionId } from "@/lib/sync-subscription-from-checkout";
 import { DashboardClient } from "@/components/dashboard-client";
 
+export const dynamic = "force-dynamic";
+
 type DashboardSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function dashboardExtraQuery(sp: Record<string, string | string[] | undefined>): Record<string, string> {
